@@ -49,10 +49,6 @@ void setup()
   Serial.print("IP Address: ");
   Serial.println(WiFi.softAPIP());
 
-  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send(200, "text/plain", "Hello, world");
-  });
-
   // Send a GET request to <IP>/get?message=<message>
   server.on("/get", HTTP_GET, [](AsyncWebServerRequest *request) {
     String message;
@@ -81,14 +77,21 @@ void setup()
     request->send(200, "text/plain", "Hello, POST: " + message);
   });
 
-  SPIFFS.begin();
+  if(!SPIFFS.begin(true)){
+    Serial.println("An Error has occurred while mounting SPIFFS");
+    return;
+  }
 
   events.onConnect([](AsyncEventSourceClient *client) {
     client->send("hello!", NULL, millis(), 1000);
   });
 
-  server.serveStatic("/", SPIFFS, "/").setDefaultFile("index.html");
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
+    request->send(SPIFFS, "/index.html");
+  });
 
+  server.serveStatic("/", SPIFFS, "/");
+  
   server.begin();
 }
 
