@@ -1,10 +1,29 @@
 #include <Arduino.h>
-#include "BluetoothSerial.h"
 #include <WiFi.h>
 #include "ESPAsyncWebServer.h"
 #include <AsyncTCP.h>
 #include <FS.h>
 #include "SPIFFS.h"
+#include <BLEDevice.h>
+#include <BLEUtils.h>
+#include <BLEScan.h>
+#include <BLEAdvertisedDevice.h>
+#include <cJSON.h>
+
+int scanTime = 5; //In seconds
+BLEScan *pBLEScan;
+BLEScanResults foundDevices;
+
+#define MINIMUM_DEVICE_INFO_RESPONSE_SIZE 30
+#define MAXIMUM_DEVICE_OBJECT_SIZE 72
+
+class MyAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks
+{
+  void onResult(BLEAdvertisedDevice advertisedDevice)
+  {
+    Serial.printf("A%s \n", advertisedDevice.getName().c_str());
+  }
+};
 
 const char *ssid = "IID Module";
 const char *password = "zaq1@WSX";
@@ -12,8 +31,6 @@ const char *password = "zaq1@WSX";
 #if !defined(CONFIG_BT_ENABLED) || !defined(CONFIG_BLUEDROID_ENABLED)
 #error Bluetooth is not enabled! Please run `make menuconfig` to and enable it
 #endif
-
-BluetoothSerial SerialBT;
 
 #define RELAY_PIN 2
 #define LED_PIN 15
@@ -35,10 +52,14 @@ void setup()
   digitalWrite(RELAY_PIN, HIGH);
 
   //BT
-  Serial.begin(115200);
-  delay(1000);
-  SerialBT.begin("IID Module");
-  Serial.println("The device started, now you can pair it with bluetooth!");
+  Serial.println("Starting BLE scan");
+
+  BLEDevice::init("");
+  pBLEScan = BLEDevice::getScan(); //create new scan
+  pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
+  pBLEScan->setActiveScan(true); //active scan uses more power, but get results faster
+  pBLEScan->setInterval(100);
+  pBLEScan->setWindow(99); // less or equal setInterval value
 
   WiFi.persistent(false);
   WiFi.setAutoReconnect(false);
@@ -50,17 +71,54 @@ void setup()
   Serial.println(WiFi.softAPIP());
 
   // Send a GET request to <IP>/get?message=<message>
-  server.on("/get", HTTP_GET, [](AsyncWebServerRequest *request) {
-    String message;
-    if (request->hasParam(PARAM_MESSAGE))
+  server.on("/api/getdeviceslist", HTTP_GET, [](AsyncWebServerRequest *request) {
+    foundDevices = pBLEScan->start(scanTime, false);
+
+    cJSON *devices = NULL;
+    cJSON *device = NULL;
+    cJSON *name = NULL;
+    cJSON *address = NULL;
+
+    cJSON *json = cJSON_CreateObject();
+    if (json == NULL)
     {
-      message = request->getParam(PARAM_MESSAGE)->value();
+      goto end;
     }
-    else
+
+    devices = cJSON_CreateArray();
+    if (devices == NULL)
     {
-      message = "No message sent";
+      goto end;
     }
-    request->send(200, "text/plain", "Hello, GET: " + message);
+    cJSON_AddItemToObject(json, "devices", devices);
+
+    for (int i = 0; i < foundDevices.getCount(); i++)
+    {
+
+      device = cJSON_CreateObject();
+      if (device == NULL)
+      {
+        goto end;
+      }
+      cJSON_AddItemToArray(devices, device);
+
+      name = cJSON_CreateString(foundDevices.getDevice(i).getName().c_str());
+      if (name == NULL)
+      {
+        goto end;
+      }
+      cJSON_AddItemToObject(device, "Name", name);
+
+      address = cJSON_CreateString(foundDevices.getDevice(i).getAddress().toString().c_str());
+      if (address == NULL)
+      {
+        goto end;
+      }
+      cJSON_AddItemToObject(device, "Address", address);
+    }
+    request->send(200, "application/json", cJSON_Print(json));
+  end:
+    cJSON_Delete(json);
   });
 
   // Send a POST request to <IP>/post with a form field message set to <message>
@@ -77,7 +135,8 @@ void setup()
     request->send(200, "text/plain", "Hello, POST: " + message);
   });
 
-  if(!SPIFFS.begin(true)){
+  if (!SPIFFS.begin(true))
+  {
     Serial.println("An Error has occurred while mounting SPIFFS");
     return;
   }
@@ -91,19 +150,10 @@ void setup()
   });
 
   server.serveStatic("/", SPIFFS, "/");
-  
+
   server.begin();
 }
 
 void loop()
 {
-  if (Serial.available())
-  {
-    SerialBT.write(Serial.read());
-  }
-  if (SerialBT.available())
-  {
-    Serial.write(SerialBT.read());
-  }
-  delay(20);
 }
