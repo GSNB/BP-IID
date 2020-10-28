@@ -79,6 +79,7 @@ void setup()
     cJSON *address = NULL;
 
     cJSON *json = cJSON_CreateObject();
+
     if (json == NULL)
     {
       goto end;
@@ -116,6 +117,7 @@ void setup()
       }
     }
     request->send(200, "application/json", cJSON_Print(json));
+
   end:
     Serial.println(cJSON_Print(json));
     cJSON_Delete(json);
