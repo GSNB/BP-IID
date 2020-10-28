@@ -10,7 +10,7 @@
 #include <BLEAdvertisedDevice.h>
 #include <cJSON.h>
 
-int scanTime = 5; //In seconds
+int scanTime = 2; //In seconds
 BLEScan *pBLEScan;
 BLEScanResults foundDevices;
 
@@ -21,7 +21,7 @@ class MyAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks
 {
   void onResult(BLEAdvertisedDevice advertisedDevice)
   {
-    Serial.printf("A%s \n", advertisedDevice.getName().c_str());
+    Serial.printf("%s \n", advertisedDevice.getName().c_str());
   }
 };
 
@@ -52,8 +52,6 @@ void setup()
   digitalWrite(RELAY_PIN, HIGH);
 
   //BT
-  Serial.println("Starting BLE scan");
-
   BLEDevice::init("");
   pBLEScan = BLEDevice::getScan(); //create new scan
   pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
@@ -72,8 +70,9 @@ void setup()
 
   // Send a GET request to <IP>/get?message=<message>
   server.on("/api/getdeviceslist", HTTP_GET, [](AsyncWebServerRequest *request) {
+    Serial.println("Starting BLE scan");
     foundDevices = pBLEScan->start(scanTime, false);
-
+    delay(2000);
     cJSON *devices = NULL;
     cJSON *device = NULL;
     cJSON *name = NULL;
@@ -84,7 +83,6 @@ void setup()
     {
       goto end;
     }
-
     devices = cJSON_CreateArray();
     if (devices == NULL)
     {
@@ -94,31 +92,34 @@ void setup()
 
     for (int i = 0; i < foundDevices.getCount(); i++)
     {
-
-      device = cJSON_CreateObject();
-      if (device == NULL)
+      if (strlen(foundDevices.getDevice(i).getName().c_str()) != 0)
       {
-        goto end;
-      }
-      cJSON_AddItemToArray(devices, device);
+        device = cJSON_CreateObject();
+        if (device == NULL)
+        {
+          goto end;
+        }
+        cJSON_AddItemToArray(devices, device);
+        name = cJSON_CreateString(foundDevices.getDevice(i).getName().c_str());
+        if (name == NULL)
+        {
+          goto end;
+        }
+        cJSON_AddItemToObject(device, "Name", name);
 
-      name = cJSON_CreateString(foundDevices.getDevice(i).getName().c_str());
-      if (name == NULL)
-      {
-        goto end;
+        address = cJSON_CreateString(foundDevices.getDevice(i).getAddress().toString().c_str());
+        if (address == NULL)
+        {
+          goto end;
+        }
+        cJSON_AddItemToObject(device, "Address", address);
       }
-      cJSON_AddItemToObject(device, "Name", name);
-
-      address = cJSON_CreateString(foundDevices.getDevice(i).getAddress().toString().c_str());
-      if (address == NULL)
-      {
-        goto end;
-      }
-      cJSON_AddItemToObject(device, "Address", address);
     }
     request->send(200, "application/json", cJSON_Print(json));
   end:
+    Serial.println(cJSON_Print(json));
     cJSON_Delete(json);
+    pBLEScan->clearResults();
   });
 
   // Send a POST request to <IP>/post with a form field message set to <message>
