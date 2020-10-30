@@ -3,35 +3,6 @@
 
 <head>
     <title>IID Module COnfiguration</title>
-    <script>
-
-        async function getDevicesList() {
-            const response = await fetch('/api/getdeviceslist');
-            if (!response.ok) {
-                const message = `An error has occured: ${response.status}`;
-                throw new Error(message);
-            }
-            const data = await response.json();
-            console.log(data);
-            return data;
-        }
-
-        getDevicesList().then(data => {
-            console.log(data.devices.length);
-            if (data.devices.length > 0) {
-                for (var i = 0; i < data.devices.length; i++) {
-                    var option = document.createElement("option");
-                    option.text = data.devices(i).name;
-                    document.getElementById("deviceSelect").add(option);
-                }
-            } else {
-                document.getElementById("deviceSelect").options[0].innerHTML = "No devices found";
-            }
-        }).catch(error => {
-            console.log(error.message); // 'An error has occurred: 404'
-        });
-
-    </script>
 </head>
 
 <body>
@@ -42,5 +13,35 @@
         </select>
     </form>
 </body>
+
+<script>
+
+    async function getDevicesList() {
+        const response = await fetch('/api/getdeviceslist');
+        if (!response.ok) {
+            const message = `An error has occured: ${response.status}`;
+            throw new Error(message);
+        }
+        const data = await response.json();
+        console.log(data);
+        return data;
+    }
+
+    getDevicesList().then(data => {
+        console.log(data.devices.length);
+        if (data.devices.length > 0) {
+            for (var i = 0; i < data.devices.length; i++) {
+                var option = document.createElement("option");
+                option.text = data.devices[i].Name;
+                document.getElementById("deviceSelect").add(option);
+            }
+        } else {
+            document.getElementById("deviceSelect").options[0].innerHTML = "No devices found";
+        }
+    }).catch(error => {
+        console.log(error.message); // 'An error has occurred: 404'
+    });
+
+</script>
 
 </html>
