@@ -1,10 +1,9 @@
 #include <SPI.h>
 #include <Wire.h>
-#include <driver/adc.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <Adafruit_I2CDevice.h>
-#include <EEPROM.h>
+#include <Adafruit_ADS1015.h>
 #include <BLEDevice.h>
 #include <BLEUtils.h>
 #include <BLEServer.h>
@@ -26,9 +25,14 @@ uint32_t value = 0;
 #define OLED_DC 22
 #define OLED_CS 23
 #define OLED_RESET 21
+
 #define BUTTON_PIN 15
-#define ADC 27
 #define BUZZER 5
+
+#define SCL 27
+#define SDA 26
+
+Adafruit_ADS1115 ads;
 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT,
                          OLED_MOSI, OLED_CLK, OLED_DC, OLED_RESET, OLED_CS);
@@ -49,7 +53,6 @@ int alcValue = 0;    //wartość pomiaru w promilach * 1000
 char const *text = ""; //zmienna tymczasowa wykorzystywana do druku tekstu na wyświetlacz
 char *formattedValue;  //wartość pomiaru w promilach przekształcona na tablicę znaków
 int temp = 0;          //liczbowa zmienna tymczasowa
-int memValue = 0;      //zmienna przechowująca ostatnią odczytaną wartość z pamięci
 
 //zmienne potrzebne do sformatowania wartości promili
 char buffer[5];
@@ -124,40 +127,7 @@ void IRAM_ATTR buttonInterrupt()
   }
 }
 
-//fukcja czyzscząca pamięć zapisanych pomiarów
-void eepromClear()
-{
-  for (int i = 0; i < 10 * sizeof(int); i += sizeof(int))
-  {
-    EEPROM.get(i, memValue);
-    if (memValue != 0) //pominięcie pustych adresów
-    {
-      EEPROM.put(i, 0); //zadpisywanie pamięci wartością 0
-      EEPROM.commit();
-    }
-  }
-  Serial.println("EEPROM erased");
-  address = 0; //zerowanie iteratora pamięci
-}
-
 //fukcja zapisu podanej wartości value do pamięci pod następny wolny adres
-void eepromSave(int value)
-{
-  EEPROM.put(address, value); //zapis
-  EEPROM.commit();
-  Serial.print("Sensor value ");
-  Serial.print(value);
-  Serial.print(" stored at index ");
-  Serial.println(address / sizeof(int));
-
-  address += sizeof(int); //inkrementacja iteratora pamięci
-
-  // w przypadku zapełnienia pamięci, następne pomiary zostają zapisane na początku pamięci
-  if (address == 10 * sizeof(int))
-  {
-    address = 0;
-  }
-}
 
 //fukcja (przeciążona) do wyświetlania tekstu
 void OLED(int x, int y, const char *text, int font_size)
@@ -221,7 +191,8 @@ void setup()
 {
   Serial.begin(115200);
 
-  Serial.begin(115200);
+  Wire.begin(SDA, SCL);
+  
   Serial.println("Starting BLE work!");
 
   BLEDevice::init("Breathalyzer");
@@ -267,18 +238,6 @@ void setup()
       ;
   }
 
-  //konfiguracja pamięci
-  if (!EEPROM.begin(512))
-  {
-    Serial.println("failed to initialise EEPROM");
-    for (;;)
-      ;
-  }
-
-  //konfiguracja ADC
-  adc1_config_width(ADC_WIDTH_12Bit);
-  adc1_config_channel_atten(ADC1_CHANNEL_7, ADC_ATTEN_11db);
-
   //opóźnienie, proces nagrzewania czujnika
   for (int i = heatTime; i > 0; --i)
   {
@@ -293,7 +252,7 @@ void setup()
   }
 
   //pobranie wartości kalibracyjnej
-  calibValue = analogRead(ADC);
+  calibValue = map(ads.readADC_SingleEnded(0), 0, 32768, 0, 4095);
   Serial.print("Calibration value: ");
   Serial.println(calibValue);
 
@@ -337,7 +296,7 @@ void loop()
       }
 
       //odczyt wartości z ADC
-      int temp = analogRead(ADC);
+      int temp = map(ads.readADC_SingleEnded(0), 0, 32768, 0, 4095);
       if (temp > measurement)
       {
         measurement = temp;
