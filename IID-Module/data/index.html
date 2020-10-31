@@ -2,46 +2,156 @@
 <html>
 
 <head>
-    <title>IID Module COnfiguration</title>
+    <title>IID Module Configuration</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="axios.min.js"></script>
+    <script>
+        var devicesListJSON;
+        var postData;
+        async function getDevicesList() {
+            const response = await fetch('/api/getdeviceslist');
+            if (!response.ok) {
+                const message = `An error has occured: ${response.status}`;
+                throw new Error(message);
+            }
+            const data = await response.json();
+            console.log(data);
+            return data;
+        }
+
+        async function saveSettings() {
+            for (var i = 0; i < devicesListJSON.devices.length; i++) {
+                if (devicesListJSON.devices[i].Name == document.getElementById("deviceSelect").value) {
+                    postData = devicesListJSON.devices[i].Address;
+                    console.log(postData);
+                    break;
+                }
+            }
+            const response = axios.post("/api/savesettings", {
+                Address: postData
+            });
+            console.log(response);
+            return response;
+        }
+
+        getDevicesList().then(data => {
+            console.log(data.devices.length);
+            if (data.devices.length > 0) {
+                for (var i = 0; i < data.devices.length; i++) {
+                    var option = document.createElement("option");
+                    option.text = data.devices[i].Name;
+                    document.getElementById("deviceSelect").add(option);
+                }
+                devicesListJSON = data;
+            } else {
+                document.getElementById("deviceSelect").options[0].innerHTML = "No devices found";
+            }
+        }).catch(error => {
+            console.log(error.message); // 'An error has occurred: 404'
+        });
+
+    </script>
+    <style>
+        body {
+            font-family: Calibri, sans-serif;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 97vh;
+            width: 97vw;
+            box-sizing: border-box;
+            background: rgb(51, 48, 102);
+            background: linear-gradient(256deg, rgba(51, 48, 102, 1) 0%, rgba(80, 80, 214, 1) 29%, rgba(0, 212, 255, 1) 100%);
+        }
+
+        h3 {
+            text-align: center;
+        }
+
+        p {
+            text-align: justify;
+        }
+
+        #deviceSelect {
+            margin-top: 10px;
+            width: 100%;
+            display: block;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            overflow: hidden;
+            background: #f9f9f9 url("img/icon-select.png") no-repeat 90% 50%;
+            padding: 5px 10px;
+        }
+
+        #deviceSelect select {
+            padding: 5px 8px;
+            width: 130%;
+            border: none;
+            box-shadow: none;
+            background: transparent;
+            background-image: none;
+            -webkit-appearance: none;
+        }
+
+        #deviceSelect select:focus {
+            outline: none;
+        }
+
+        #deviceSelect option {
+            padding: 5px 8px;
+            zoom: 1.1;
+        }
+
+        #wrapper {
+            padding: 20px;
+            background-color: #fdfdfd;
+            border: 2px solid #333066;
+            border-radius: 7px;
+            -webkit-box-shadow: 0px 0px 10px 1px rgba(0, 0, 0, 0.5);
+            -moz-box-shadow: 0px 0px 10px 1px rgba(0, 0, 0, 0.5);
+            box-shadow: 0px 0px 10px 1px rgba(0, 0, 0, 0.5);
+            max-width: 400px;
+        }
+
+        input[type=button] {
+            margin-top: 10px;
+            width: 100%;
+            display: block;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            overflow: hidden;
+            background: #f9f9f9 url("img/icon-select.png") no-repeat 90% 50%;
+            padding: 5px 10px;
+        }
+
+        hr {
+            margin: 25px 0;
+        }
+
+        .description {
+            font-size: x-small;
+            font-weight: bold;
+        }
+    </style>
 </head>
 
 <body>
-    <form>
-        <label for="cars">Select proper breathalyzer device:</label>
-        <select name="devices" id="deviceSelect">
-            <option value="" disabled selected>Select device</option>
-        </select>
-    </form>
+    <div id="wrapper">
+        <h3>IID Module configuration panel</h2>
+            <p>To work properly, the IID Module requires a paired breathalyzer device. Make sure that the device you're
+                trying to find is powered and within range of bluetooth connection.</p>
+            <hr>
+            <form>
+                <label for="cars">Select proper breathalyzer device</label>
+                <select name="devices" id="deviceSelect">
+                    <option value="" disabled selected>Select device</option>
+                </select>
+                <p class="description">*This setting will be saved. You can change it at any time.</p>
+                <hr>
+                <input type="button" onclick="saveSettings()" value="Save settings">
+            </form>
+    </div>
 </body>
-
-<script>
-
-    async function getDevicesList() {
-        const response = await fetch('/api/getdeviceslist');
-        if (!response.ok) {
-            const message = `An error has occured: ${response.status}`;
-            throw new Error(message);
-        }
-        const data = await response.json();
-        console.log(data);
-        return data;
-    }
-
-    getDevicesList().then(data => {
-        console.log(data.devices.length);
-        if (data.devices.length > 0) {
-            for (var i = 0; i < data.devices.length; i++) {
-                var option = document.createElement("option");
-                option.text = data.devices[i].Name;
-                document.getElementById("deviceSelect").add(option);
-            }
-        } else {
-            document.getElementById("deviceSelect").options[0].innerHTML = "No devices found";
-        }
-    }).catch(error => {
-        console.log(error.message); // 'An error has occurred: 404'
-    });
-
-</script>
 
 </html>

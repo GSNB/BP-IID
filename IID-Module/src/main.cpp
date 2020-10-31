@@ -9,10 +9,21 @@
 #include <BLEScan.h>
 #include <BLEAdvertisedDevice.h>
 #include <cJSON.h>
+#include <string>
 
-int scanTime = 2; //In seconds
+bool blockFlag = true;
+
+int scanTime = 1; //In seconds
 BLEScan *pBLEScan;
+BLEClient *pClient;
 BLEScanResults foundDevices;
+BLERemoteCharacteristic *pRemoteCharacteristic;
+std::string breathalyzerAddress;
+
+// The remote service we wish to connect to.
+#define serviceUUID "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
+// The characteristic we wish to read.
+#define characteristicUUID "1813"
 
 #define MINIMUM_DEVICE_INFO_RESPONSE_SIZE 30
 #define MAXIMUM_DEVICE_OBJECT_SIZE 72
@@ -45,6 +56,50 @@ void notFound(AsyncWebServerRequest *request)
   request->send(404, "text/plain", "Not found");
 }
 
+bool connectToServer(std::string deviceAddress)
+{
+  bool connectionStatus;
+
+  Serial.print("Forming a connection to ");
+  Serial.println(deviceAddress.c_str());
+
+  Serial.println(" - Created client");
+
+  // Connect to the remote BLE Server.
+  connectionStatus = pClient->connect(deviceAddress); // if you pass BLEAdvertisedDevice instead of address, it will be recognized type of peer device address (public or private)
+  if (connectionStatus)
+  {
+    Serial.println("Connected to server");
+
+    // Obtain a reference to the service we are after in the remote BLE server.
+    BLERemoteService *pRemoteService = pClient->getService(BLEUUID(serviceUUID));
+    if (pRemoteService == nullptr)
+    {
+      Serial.print("Failed to find our service UUID: ");
+      Serial.println(serviceUUID);
+      pClient->disconnect();
+      return false;
+    }
+    Serial.println(" - Found our service");
+
+    // Obtain a reference to the characteristic in the service of the remote BLE server.
+    pRemoteCharacteristic = pRemoteService->getCharacteristic(BLEUUID(characteristicUUID));
+    if (pRemoteCharacteristic == nullptr)
+    {
+      Serial.print("Failed to find our characteristic UUID: ");
+      Serial.println(characteristicUUID);
+      pClient->disconnect();
+      return false;
+    }
+    return true;
+  }
+  else
+  {
+    Serial.println("Failed to connect");
+    return false;
+  }
+}
+
 void setup()
 {
   Serial.begin(115200);
@@ -58,6 +113,7 @@ void setup()
   pBLEScan->setActiveScan(true); //active scan uses more power, but get results faster
   pBLEScan->setInterval(100);
   pBLEScan->setWindow(99); // less or equal setInterval value
+  pClient = BLEDevice::createClient();
 
   WiFi.persistent(false);
   WiFi.setAutoReconnect(false);
@@ -72,7 +128,7 @@ void setup()
   server.on("/api/getdeviceslist", HTTP_GET, [](AsyncWebServerRequest *request) {
     Serial.println("Starting BLE scan");
     foundDevices = pBLEScan->start(scanTime, false);
-    delay(2000);
+    delay(scanTime * 1000);
     cJSON *devices = NULL;
     cJSON *device = NULL;
     cJSON *name = NULL;
@@ -119,24 +175,26 @@ void setup()
     request->send(200, "application/json", cJSON_Print(json));
 
   end:
-    Serial.println(cJSON_Print(json));
     cJSON_Delete(json);
     pBLEScan->clearResults();
   });
 
   // Send a POST request to <IP>/post with a form field message set to <message>
-  server.on("/post", HTTP_POST, [](AsyncWebServerRequest *request) {
-    String message;
-    if (request->hasParam(PARAM_MESSAGE, true))
+  server.on(
+      "/api/savesettings", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+    Serial.println("Save event fired");
+    std::string body = "";
+    std::string param = "";
+    for (size_t i = 0; i < len; i++)
     {
-      message = request->getParam(PARAM_MESSAGE, true)->value();
+      body += data[i];
     }
-    else
-    {
-      message = "No message sent";
+    param = body.substr(2,7);
+    if(param == "Address" && body.substr(12,17).length() == 17){
+      breathalyzerAddress = body.substr(12,17);
     }
-    request->send(200, "text/plain", "Hello, POST: " + message);
-  });
+    Serial.println(body.c_str());
+    Serial.println(param.c_str()); });
 
   if (!SPIFFS.begin(true))
   {
@@ -159,4 +217,25 @@ void setup()
 
 void loop()
 {
+  if (blockFlag)
+  {
+    if (pClient->isConnected())
+    {
+      // Read the value of the characteristic.
+      if (pRemoteCharacteristic->canRead())
+      {
+        Serial.print("Read characteristic value is: ");
+        Serial.println(pRemoteCharacteristic->readValue().c_str());
+        if(pRemoteCharacteristic->readValue().c_str() == "UNBLOCK"){
+          blockFlag = false;
+        }
+      }
+    }
+    else if (breathalyzerAddress.length() == 17)
+    {
+      Serial.println("Trying to connect");
+      connectToServer(breathalyzerAddress.c_str());
+    }
+  }
+  delay(2000);
 }
