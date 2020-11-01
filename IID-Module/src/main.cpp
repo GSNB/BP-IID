@@ -63,8 +63,6 @@ bool connectToServer(std::string deviceAddress)
   Serial.print("Forming a connection to ");
   Serial.println(deviceAddress.c_str());
 
-  Serial.println(" - Created client");
-
   // Connect to the remote BLE Server.
   connectionStatus = pClient->connect(deviceAddress); // if you pass BLEAdvertisedDevice instead of address, it will be recognized type of peer device address (public or private)
   if (connectionStatus)
@@ -196,6 +194,9 @@ void setup()
     cJSON *device = NULL;
     cJSON *name = NULL;
     cJSON *address = NULL;
+    cJSON *wifi = NULL;
+    cJSON *savedDevice = NULL;
+    cJSON *ssidtmp = NULL;
 
     cJSON *json = cJSON_CreateObject();
 
@@ -203,6 +204,20 @@ void setup()
     {
       goto end;
     }
+
+    wifi = cJSON_CreateObject();
+    if (wifi == NULL)
+    {
+      goto end;
+    }
+    cJSON_AddItemToObject(json, "wifi", wifi);
+    ssidtmp = cJSON_CreateString(ssid.c_str());
+    if (ssidtmp == NULL)
+    {
+      goto end;
+    }
+    cJSON_AddItemToObject(wifi, "SSID", ssidtmp);
+
     devices = cJSON_CreateArray();
     if (devices == NULL)
     {
@@ -219,20 +234,46 @@ void setup()
         {
           goto end;
         }
-        cJSON_AddItemToArray(devices, device);
-        name = cJSON_CreateString(foundDevices.getDevice(i).getName().c_str());
-        if (name == NULL)
+        if (foundDevices.getDevice(i).getAddress().toString().c_str() == breathalyzerAddress.c_str())
         {
-          goto end;
-        }
-        cJSON_AddItemToObject(device, "Name", name);
+          savedDevice = cJSON_CreateObject();
+          if (savedDevice == NULL)
+          {
+            goto end;
+          }
+          cJSON_AddItemToObject(json, "savedDevice", savedDevice);
 
-        address = cJSON_CreateString(foundDevices.getDevice(i).getAddress().toString().c_str());
-        if (address == NULL)
-        {
-          goto end;
+          name = cJSON_CreateString(foundDevices.getDevice(i).getName().c_str());
+          if (name == NULL)
+          {
+            goto end;
+          }
+          cJSON_AddItemToObject(savedDevice, "Name", name);
+
+          address = cJSON_CreateString(foundDevices.getDevice(i).getAddress().toString().c_str());
+          if (address == NULL)
+          {
+            goto end;
+          }
+          cJSON_AddItemToObject(savedDevice, "Address", address);
         }
-        cJSON_AddItemToObject(device, "Address", address);
+        else
+        {
+          cJSON_AddItemToArray(devices, device);
+          name = cJSON_CreateString(foundDevices.getDevice(i).getName().c_str());
+          if (name == NULL)
+          {
+            goto end;
+          }
+          cJSON_AddItemToObject(device, "Name", name);
+
+          address = cJSON_CreateString(foundDevices.getDevice(i).getAddress().toString().c_str());
+          if (address == NULL)
+          {
+            goto end;
+          }
+          cJSON_AddItemToObject(device, "Address", address);
+        }
       }
     }
     request->send(200, "application/json", cJSON_Print(json));
@@ -244,9 +285,9 @@ void setup()
 
   // Send a POST request to <IP>/post with a form field message set to <message>
   server.on(
-      "/api/savebtsettings", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
-    Serial.println("Save Bluetooth configuration event fired");
-    String addresstmp;
+      "/api/savebtsettings", HTTP_POST, [](AsyncWebServerRequest *request) {
+        Serial.println("Save Bluetooth configuration event fired");
+        String addresstmp;
 
         if (request->hasParam("Address", true))
         {
@@ -259,7 +300,8 @@ void setup()
           Serial.println("Saving the address to memory");
           saveToFile("/ble.conf", addresstmp.c_str());
           pClient->disconnect();
-        } });
+        }
+      });
 
   server.on(
       "/api/savewifisettings", HTTP_POST, [](AsyncWebServerRequest *request) {
