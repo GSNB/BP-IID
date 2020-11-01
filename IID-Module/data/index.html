@@ -12,11 +12,15 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            min-height: 97vh;
-            width: 97vw;
             box-sizing: border-box;
             background: rgb(51, 48, 102);
             background: linear-gradient(256deg, rgba(51, 48, 102, 1) 0%, rgba(80, 80, 214, 1) 29%, rgba(0, 212, 255, 1) 100%);
+        }
+
+        body,
+        html {
+            height: 100%;
+            margin: 0;
         }
 
         h3 {
@@ -57,7 +61,7 @@
             zoom: 1.1;
         }
 
-        #wrapper {
+        #flexbox {
             padding: 20px;
             background-color: #fdfdfd;
             border: 2px solid #333066;
@@ -66,6 +70,13 @@
             -moz-box-shadow: 0px 0px 10px 1px rgba(0, 0, 0, 0.5);
             box-shadow: 0px 0px 10px 1px rgba(0, 0, 0, 0.5);
             max-width: 400px;
+        }
+
+        #wrapper {
+            min-height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         input {
@@ -93,30 +104,34 @@
 
 <body>
     <div id="wrapper">
-        <h3>IID Module configuration panel</h2>
-            <p>To work properly, the IID Module requires a paired breathalyzer device. Make sure that the device you're
-                trying to find is powered and within range of bluetooth connection.</p>
-            <form>
-                <label for="cars">Select breathalyzer device</label>
-                <select name="devices" id="deviceSelect">
-                    <option value="" disabled selected>Select device</option>
-                </select>
-                <br>
-                <input type="button" onclick="saveBTSettings()" value="Save Bluetooth configuration">
-            </form>
-            <hr>
-            <p>You can change name (SSID) and password of this device's WiFi hotspot. Please make sure that the password
-                is at least 8 characters long.</p>
-            <form>
-                <label for="cars">Name this device's hostspot</label>
-                <input type="text" name="ssid" placeholder="SSID">
-                <label for="cars">Set up a strong password</label>
-                <input type="password" name="password" placeholder="Password">
-                <br>
-                <input type="button" onclick="saveWIFISettings()" value="Save WiFi configuration">
-            </form>
-            <hr>
-            <p class="description">*All settings will be saved. You can change them at any time.</p>
+        <div id="flexbox">
+            <h3>IID Module configuration panel</h2>
+                <p>To work properly, the IID Module requires a paired breathalyzer device. Make sure that the device
+                    you're
+                    trying to find is powered and within range of bluetooth connection.</p>
+                <form>
+                    <label for="cars">Select breathalyzer device</label>
+                    <select name="devices" id="deviceSelect">
+                        <option value="" disabled selected>Select device</option>
+                    </select>
+                    <br>
+                    <input type="button" onclick="saveBTSettings()" value="Save Bluetooth configuration">
+                </form>
+                <hr>
+                <p>You can change name (SSID) and password of this device's WiFi hotspot. Please make sure that the
+                    password
+                    is at least 8 characters long.</p>
+                <form>
+                    <label for="cars">Name this device's hostspot</label>
+                    <input type="text" name="ssid" placeholder="SSID">
+                    <label for="cars">Set up a strong password</label>
+                    <input type="password" name="password" placeholder="Password">
+                    <br>
+                    <input type="button" onclick="saveWIFISettings()" value="Save WiFi configuration">
+                </form>
+                <hr>
+                <p class="description">*All settings will be saved. You can change them at any time.</p>
+        </div>
     </div>
 </body>
 <script>
@@ -124,7 +139,7 @@
     var postData;
 
     const transFormRequest = (formValues) => {
-        const formData = new formData();
+        const formData = new FormData();
         Object.keys(formValues).map((key) => {
             formData.append(key, formValues[key])
         })
@@ -149,9 +164,9 @@
                 break;
             }
         }
-        const response = axios.post("/api/savebtsettings", {
+        const response = axios.post("/api/savebtsettings", transFormRequest({
             Address: postData
-        });
+        }));
         console.log(response);
         return response;
     }
@@ -160,10 +175,10 @@
         var ssid = document.getElementsByName("ssid")[0].value;
         var password = document.getElementsByName("password")[0].value;
         if (ssid.length > 0 && password.length >= 8) {
-            const response = axios.post("/api/savewifisettings", {
+            const response = axios.post("/api/savewifisettings", transFormRequest({
                 SSID: ssid,
                 Password: password
-            });
+            }));
             console.log(response);
             return response;
         }

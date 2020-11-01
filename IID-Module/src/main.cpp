@@ -37,8 +37,9 @@ class MyAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks
   }
 };
 
-const char *ssid = "IID Module";
-const char *password = "zaq1@WSX";
+std::string ssid = "IID Module";
+std::string password = "zaq1@WSX";
+std::string temp = "";
 
 #if !defined(CONFIG_BT_ENABLED) || !defined(CONFIG_BLUEDROID_ENABLED)
 #error Bluetooth is not enabled! Please run `make menuconfig` to and enable it
@@ -131,11 +132,9 @@ std::string readFromFile(const char *filename)
   else
   {
     Serial.println("Reading Data from File:");
-    //Data from file
     text = f.readStringUntil('\n').c_str();
     Serial.println(text.c_str());
-    f.close(); //Close file
-    Serial.println("File Closed");
+    f.close();
   }
   return text;
 }
@@ -162,11 +161,27 @@ void setup()
   pBLEScan->setWindow(99); // less or equal setInterval value
   pClient = BLEDevice::createClient();
 
+  temp = readFromFile("/ssid.conf").c_str();
+  if (temp.length() > 0)
+  {
+    ssid = temp;
+    Serial.print("Loaded SSID from memory: ");
+    Serial.println(ssid.c_str());
+  }
+
+  password = readFromFile("/pass.conf").c_str();
+  Serial.print("Loaded password from memory: ");
+  Serial.println(password.c_str());
+
+  breathalyzerAddress = readFromFile("/ble.conf").c_str();
+  Serial.print("Loaded address from memory: ");
+  Serial.println(breathalyzerAddress.c_str());
+
   WiFi.persistent(false);
   WiFi.setAutoReconnect(false);
   WiFi.softAPdisconnect();
   WiFi.disconnect();
-  WiFi.softAP(ssid, password);
+  WiFi.softAP(ssid.c_str(), password.c_str());
 
   Serial.print("IP Address: ");
   Serial.println(WiFi.softAPIP());
@@ -176,6 +191,7 @@ void setup()
     Serial.println("Starting BLE scan");
     foundDevices = pBLEScan->start(scanTime, false);
     delay(scanTime * 1000);
+
     cJSON *devices = NULL;
     cJSON *device = NULL;
     cJSON *name = NULL;
@@ -230,61 +246,52 @@ void setup()
   server.on(
       "/api/savebtsettings", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
     Serial.println("Save Bluetooth configuration event fired");
-    std::string body = "";
-    std::string param = "Address";
-    int position = 0;
+    String addresstmp;
 
-    for (size_t i = 0; i < len; i++)
-    {
-      body += data[i];
-    }
-    position = body.find(param);
-    if(position != 0){
-      breathalyzerAddress = body.substr(position + param.length() + 3, 17);
-      saveToFile("/ble.conf", breathalyzerAddress.c_str());
-      Serial.print("Got address: ");
-      Serial.println(breathalyzerAddress.c_str());
-    }
-    Serial.println(body.c_str());
-    Serial.println(param.c_str()); });
+        if (request->hasParam("Address", true))
+        {
+          addresstmp = request->getParam("Address", true)->value();
+
+          Serial.print("Received BT device address: ");
+          Serial.println(addresstmp);
+
+          breathalyzerAddress = addresstmp.c_str();
+          Serial.println("Saving the address to memory");
+          saveToFile("/ble.conf", addresstmp.c_str());
+          pClient->disconnect();
+        } });
 
   server.on(
-      "/api/savewifisettings", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
-    Serial.println("Save WiFi configuration event fired");
-    std::string body = "";
-    int paramCount = 2;
-    std::string params[paramCount] = {"SSID", "Password"};
-    std::string results[paramCount] = {"" , ""};
-    int position = 0;
-    int length = 0;
-    int resultPos = 0;
-    for (size_t i = 0; i < len; i++)
-    {
-      body += data[i];
-    }
-    for (size_t i = 0; i < paramCount; i++) {
-      position = body.find(params[i]);
-      if(position != 0){
-        resultPos = position + params[i].length() + 3;
-        length = body.find('"', resultPos) - resultPos;
-        results[i] = body.substr(resultPos, length);
-      }
-      position = 0;
-      length = 0;
-      resultPos = 0;
-      Serial.println(results[i].c_str());
-    }
-    
-    Serial.println(body.c_str()); });
+      "/api/savewifisettings", HTTP_POST, [](AsyncWebServerRequest *request) {
+        Serial.println("Save WiFi configuration event fired");
+        String ssidtmp;
+        String passwordtmp;
 
-  breathalyzerAddress = readFromFile("/ble.conf").c_str();
-  Serial.print("Loaded address from memory: ");
-  Serial.println(breathalyzerAddress.c_str());
-  /*
-  events.onConnect([](AsyncEventSourceClient *client) {
-    client->send("hello!", NULL, millis(), 1000);
-  });
-  */
+        if (request->hasParam("SSID", true) && request->hasParam("Password", true))
+        {
+          WiFi.softAPdisconnect();
+
+          ssidtmp = request->getParam("SSID", true)->value();
+          passwordtmp = request->getParam("Password", true)->value();
+
+          Serial.print("Received SSID: ");
+          Serial.println(ssidtmp);
+
+          Serial.print("And Password: ");
+          Serial.println(passwordtmp);
+
+          WiFi.persistent(false);
+          WiFi.setAutoReconnect(false);
+          WiFi.softAPdisconnect();
+          WiFi.disconnect();
+          WiFi.softAP(ssidtmp.c_str(), passwordtmp.c_str());
+
+          Serial.println("Saving hotspot configuration to memory");
+          saveToFile("/ssid.conf", ssidtmp.c_str());
+          saveToFile("/pass.conf", passwordtmp.c_str());
+        }
+      });
+
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
     request->send(SPIFFS, "/index.html");
   });
@@ -292,7 +299,6 @@ void setup()
   server.serveStatic("/", SPIFFS, "/");
 
   server.begin();
-  delay(5000);
 }
 
 void loop()
