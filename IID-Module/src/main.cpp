@@ -19,6 +19,7 @@ BLEClient *pClient;
 BLEScanResults foundDevices;
 BLERemoteCharacteristic *pRemoteCharacteristic;
 std::string breathalyzerAddress;
+std::string receivedValue;
 
 // The remote service we wish to connect to.
 #define serviceUUID "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
@@ -98,11 +99,59 @@ bool connectToServer(std::string deviceAddress)
   }
 }
 
+bool saveToFile(const char *filename, const char *text)
+{
+  File f = SPIFFS.open(filename, "w");
+
+  if (!f)
+  {
+    Serial.println("file open failed");
+    return false;
+  }
+  else
+  {
+    //Write data to file
+    Serial.println("Writing Data to File");
+    Serial.println(text);
+    f.print(text);
+    f.close(); //Close file
+    return true;
+  }
+}
+
+std::string readFromFile(const char *filename)
+{
+  std::string text = "";
+  File f = SPIFFS.open(filename, "r");
+
+  if (!f)
+  {
+    Serial.println("file open failed");
+  }
+  else
+  {
+    Serial.println("Reading Data from File:");
+    //Data from file
+    text = f.readStringUntil('\n').c_str();
+    Serial.println(text.c_str());
+    f.close(); //Close file
+    Serial.println("File Closed");
+  }
+  return text;
+}
+
 void setup()
 {
   Serial.begin(115200);
   pinMode(RELAY_PIN, OUTPUT);
   digitalWrite(RELAY_PIN, HIGH);
+
+  //FS
+  if (!SPIFFS.begin(true))
+  {
+    Serial.println("An Error has occurred while mounting SPIFFS");
+    return;
+  }
 
   //BT
   BLEDevice::init("");
@@ -184,6 +233,7 @@ void setup()
     std::string body = "";
     std::string param = "Address";
     int position = 0;
+
     for (size_t i = 0; i < len; i++)
     {
       body += data[i];
@@ -191,6 +241,9 @@ void setup()
     position = body.find(param);
     if(position != 0){
       breathalyzerAddress = body.substr(position + param.length() + 3, 17);
+      saveToFile("/ble.conf", breathalyzerAddress.c_str());
+      Serial.print("Got address: ");
+      Serial.println(breathalyzerAddress.c_str());
     }
     Serial.println(body.c_str());
     Serial.println(param.c_str()); });
@@ -199,8 +252,9 @@ void setup()
       "/api/savewifisettings", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
     Serial.println("Save WiFi configuration event fired");
     std::string body = "";
-    std::string params[2] = {"SSID", "Password"};
-    std::string results[2] = {"" , ""};
+    int paramCount = 2;
+    std::string params[paramCount] = {"SSID", "Password"};
+    std::string results[paramCount] = {"" , ""};
     int position = 0;
     int length = 0;
     int resultPos = 0;
@@ -208,7 +262,7 @@ void setup()
     {
       body += data[i];
     }
-    for (size_t i = 0; i < len; i++) {
+    for (size_t i = 0; i < paramCount; i++) {
       position = body.find(params[i]);
       if(position != 0){
         resultPos = position + params[i].length() + 3;
@@ -221,19 +275,16 @@ void setup()
       Serial.println(results[i].c_str());
     }
     
-    Serial.println(body.c_str());
-     });
+    Serial.println(body.c_str()); });
 
-  if (!SPIFFS.begin(true))
-  {
-    Serial.println("An Error has occurred while mounting SPIFFS");
-    return;
-  }
-
+  breathalyzerAddress = readFromFile("/ble.conf").c_str();
+  Serial.print("Loaded address from memory: ");
+  Serial.println(breathalyzerAddress.c_str());
+  /*
   events.onConnect([](AsyncEventSourceClient *client) {
     client->send("hello!", NULL, millis(), 1000);
   });
-
+  */
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
     request->send(SPIFFS, "/index.html");
   });
@@ -241,6 +292,7 @@ void setup()
   server.serveStatic("/", SPIFFS, "/");
 
   server.begin();
+  delay(5000);
 }
 
 void loop()
@@ -254,9 +306,11 @@ void loop()
       {
         Serial.print("Read characteristic value is: ");
         Serial.println(pRemoteCharacteristic->readValue().c_str());
-        if (pRemoteCharacteristic->readValue().c_str() == "UNBLOCK")
+        receivedValue = pRemoteCharacteristic->readValue().c_str();
+        if (receivedValue == "UNLOCK")
         {
           blockFlag = false;
+          digitalWrite(RELAY_PIN, LOW);
         }
       }
     }

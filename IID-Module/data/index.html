@@ -97,11 +97,10 @@
             <p>To work properly, the IID Module requires a paired breathalyzer device. Make sure that the device you're
                 trying to find is powered and within range of bluetooth connection.</p>
             <form>
-                <label for="cars">Select proper breathalyzer device</label>
+                <label for="cars">Select breathalyzer device</label>
                 <select name="devices" id="deviceSelect">
                     <option value="" disabled selected>Select device</option>
                 </select>
-                <p class="description">*This setting will be saved. You can change it at any time.</p>
                 <br>
                 <input type="button" onclick="saveBTSettings()" value="Save Bluetooth configuration">
             </form>
@@ -111,18 +110,27 @@
             <form>
                 <label for="cars">Name this device's hostspot</label>
                 <input type="text" name="ssid" placeholder="SSID">
-                <p class="description">*This setting will be saved. You can change it at any time.</p>
                 <label for="cars">Set up a strong password</label>
                 <input type="password" name="password" placeholder="Password">
-                <p class="description">*This setting will be saved. You can change it at any time.</p>
                 <br>
                 <input type="button" onclick="saveWIFISettings()" value="Save WiFi configuration">
             </form>
+            <hr>
+            <p class="description">*All settings will be saved. You can change them at any time.</p>
     </div>
 </body>
 <script>
     var devicesListJSON;
     var postData;
+
+    const transFormRequest = (formValues) => {
+        const formData = new formData();
+        Object.keys(formValues).map((key) => {
+            formData.append(key, formValues[key])
+        })
+        return formData;
+    }
+
     async function getConfiguration() {
         const response = await fetch('/api/getconfiguration');
         if (!response.ok) {
@@ -149,20 +157,20 @@
     }
 
     async function saveWIFISettings() {
-        var ssid = document.getElementsByName("ssid").value;
-        var password = document.getElementsByName("password").value;
-        if(ssid.length > 0 && password.length >= 8){
+        var ssid = document.getElementsByName("ssid")[0].value;
+        var password = document.getElementsByName("password")[0].value;
+        if (ssid.length > 0 && password.length >= 8) {
             const response = axios.post("/api/savewifisettings", {
-            SSID: ssid, 
-            Password: password
-        });
-        console.log(response);
-        return response;
+                SSID: ssid,
+                Password: password
+            });
+            console.log(response);
+            return response;
         }
         else {
 
         }
-        
+
     }
 
     getConfiguration().then(data => {
@@ -182,4 +190,5 @@
     });
 
 </script>
+
 </html>
