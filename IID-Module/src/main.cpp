@@ -49,8 +49,6 @@ const char *password = "zaq1@WSX";
 AsyncWebServer server(80);
 AsyncEventSource events("/events");
 
-const char *PARAM_MESSAGE = "message";
-
 void notFound(AsyncWebServerRequest *request)
 {
   request->send(404, "text/plain", "Not found");
@@ -125,7 +123,7 @@ void setup()
   Serial.println(WiFi.softAPIP());
 
   // Send a GET request to <IP>/get?message=<message>
-  server.on("/api/getdeviceslist", HTTP_GET, [](AsyncWebServerRequest *request) {
+  server.on("/api/getconfiguration", HTTP_GET, [](AsyncWebServerRequest *request) {
     Serial.println("Starting BLE scan");
     foundDevices = pBLEScan->start(scanTime, false);
     delay(scanTime * 1000);
@@ -181,20 +179,50 @@ void setup()
 
   // Send a POST request to <IP>/post with a form field message set to <message>
   server.on(
-      "/api/savesettings", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
-    Serial.println("Save event fired");
+      "/api/savebtsettings", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+    Serial.println("Save Bluetooth configuration event fired");
     std::string body = "";
-    std::string param = "";
+    std::string param = "Address";
+    int position = 0;
     for (size_t i = 0; i < len; i++)
     {
       body += data[i];
     }
-    param = body.substr(2,7);
-    if(param == "Address" && body.substr(12,17).length() == 17){
-      breathalyzerAddress = body.substr(12,17);
+    position = body.find(param);
+    if(position != 0){
+      breathalyzerAddress = body.substr(position + param.length() + 3, 17);
     }
     Serial.println(body.c_str());
     Serial.println(param.c_str()); });
+
+  server.on(
+      "/api/savewifisettings", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+    Serial.println("Save WiFi configuration event fired");
+    std::string body = "";
+    std::string params[2] = {"SSID", "Password"};
+    std::string results[2] = {"" , ""};
+    int position = 0;
+    int length = 0;
+    int resultPos = 0;
+    for (size_t i = 0; i < len; i++)
+    {
+      body += data[i];
+    }
+    for (size_t i = 0; i < len; i++) {
+      position = body.find(params[i]);
+      if(position != 0){
+        resultPos = position + params[i].length() + 3;
+        length = body.find('"', resultPos) - resultPos;
+        results[i] = body.substr(resultPos, length);
+      }
+      position = 0;
+      length = 0;
+      resultPos = 0;
+      Serial.println(results[i].c_str());
+    }
+    
+    Serial.println(body.c_str());
+     });
 
   if (!SPIFFS.begin(true))
   {
@@ -226,7 +254,8 @@ void loop()
       {
         Serial.print("Read characteristic value is: ");
         Serial.println(pRemoteCharacteristic->readValue().c_str());
-        if(pRemoteCharacteristic->readValue().c_str() == "UNBLOCK"){
+        if (pRemoteCharacteristic->readValue().c_str() == "UNBLOCK")
+        {
           blockFlag = false;
         }
       }
