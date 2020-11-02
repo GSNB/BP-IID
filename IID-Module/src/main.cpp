@@ -79,7 +79,7 @@ bool connectToServer(std::string deviceAddress)
       pClient->disconnect();
       return false;
     }
-    Serial.println(" - Found our service");
+    Serial.println("Found our service");
 
     // Obtain a reference to the characteristic in the service of the remote BLE server.
     pRemoteCharacteristic = pRemoteService->getCharacteristic(BLEUUID(characteristicUUID));
@@ -354,6 +354,7 @@ void loop()
       {
         Serial.print("Read characteristic value is: ");
         Serial.println(pRemoteCharacteristic->readValue().c_str());
+        Serial.println(pRemoteCharacteristic->toString().c_str());
         receivedValue = pRemoteCharacteristic->readValue().c_str();
         if (receivedValue == "UNLOCK")
         {
