@@ -99,6 +99,17 @@
             font-size: x-small;
             font-weight: bold;
         }
+
+        .err {
+            margin-top: 5px;
+            margin-bottom: 0;
+            color: red;
+            font-size: small;
+            font-weight: bold;
+            overflow: hidden;
+            max-height: 0;
+            transition: max-height 0.15s ease-out;
+        }
     </style>
 </head>
 
@@ -114,6 +125,7 @@
                     <select name="devices" id="deviceSelect">
                         <option value="" disabled selected>Select device</option>
                     </select>
+                    <p class="err" id="deviceerr">No device selected.</p>
                     <br>
                     <input type="button" onclick="saveBTSettings()" value="Save Bluetooth configuration">
                 </form>
@@ -124,8 +136,14 @@
                 <form>
                     <label for="cars">Name this device's hostspot</label>
                     <input type="text" name="ssid" placeholder="SSID">
+                    <p class="err" id="ssiderr">SSID has to at least 4 characters long.</p>
+
+                    <br>
+
                     <label for="cars">Set up a strong password</label>
                     <input type="password" name="password" placeholder="Password">
+                    <p class="err" id="passerr">Password has to at least 8 characters long.</p>
+
                     <br>
                     <input type="button" onclick="saveWIFISettings()" value="Save WiFi configuration">
                 </form>
@@ -158,23 +176,34 @@
     }
 
     async function saveBTSettings() {
-        for (var i = 0; i < devicesListJSON.devices.length; i++) {
-            if (devicesListJSON.devices[i].Name == document.getElementById("deviceSelect").value) {
-                postData = devicesListJSON.devices[i].Address;
-                break;
+        if (document.getElementById("deviceSelect").value != "No devices found") {
+            if ('savedDevice' in devicesListJSON && document.getElementById("deviceSelect").value == devicesListJSON.deviceSelect.Name) {
+                postData = devicesListJSON.deviceSelect.Address;
             }
+            else {
+                for (var i = 0; i < devicesListJSON.devices.length; i++) {
+                    if (devicesListJSON.devices[i].Name == document.getElementById("deviceSelect").value) {
+                        postData = devicesListJSON.devices[i].Address;
+                        break;
+                    }
+                }
+            }
+            const response = axios.post("/api/savebtsettings", transFormRequest({
+                Address: postData
+            }));
+            console.log(response);
+            return response;
+
+        } else {
+            document.getElementById("deviceerr").style.maxHeight = "500px";
         }
-        const response = axios.post("/api/savebtsettings", transFormRequest({
-            Address: postData
-        }));
-        console.log(response);
-        return response;
     }
 
     async function saveWIFISettings() {
         var ssid = document.getElementsByName("ssid")[0].value;
         var password = document.getElementsByName("password")[0].value;
-        if (ssid.length > 0 && password.length >= 8) {
+
+        if (ssid.length > 4 && password.length >= 8) {
             const response = axios.post("/api/savewifisettings", transFormRequest({
                 SSID: ssid,
                 Password: password
@@ -183,7 +212,12 @@
             return response;
         }
         else {
-
+            if (ssid.length <= 4) {
+                document.getElementById("ssiderr").style.maxHeight = "500px";
+            }
+            if (password.length <= 8) {
+                document.getElementById("passerr").style.maxHeight = "500px";
+            }
         }
 
     }
@@ -198,6 +232,10 @@
             devicesListJSON = data;
         } else {
             document.getElementById("deviceSelect").options[0].innerHTML = "No devices found";
+        }
+        document.getElementsByName("ssid")[0].value = data.wifi.SSID;
+        if ('savedDevice' in data) {
+            document.getElementById("deviceSelect").options[0].innerHTML = data.deviceSelect.Name;
         }
     }).catch(error => {
         document.getElementById("deviceSelect").options[0].innerHTML = "No devices found";

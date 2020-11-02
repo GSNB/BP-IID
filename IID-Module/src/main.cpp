@@ -12,6 +12,7 @@
 #include <string>
 
 bool blockFlag = true;
+bool blockConnection = false;
 
 int scanTime = 1; //In seconds
 BLEScan *pBLEScan;
@@ -187,6 +188,8 @@ void setup()
   // Send a GET request to <IP>/get?message=<message>
   server.on("/api/getconfiguration", HTTP_GET, [](AsyncWebServerRequest *request) {
     Serial.println("Starting BLE scan");
+    blockConnection = true;
+    pClient->disconnect();
     foundDevices = pBLEScan->start(scanTime, false);
     delay(scanTime * 1000);
 
@@ -276,6 +279,7 @@ void setup()
         }
       }
     }
+    blockConnection = false;
     request->send(200, "application/json", cJSON_Print(json));
 
   end:
@@ -286,6 +290,7 @@ void setup()
   // Send a POST request to <IP>/post with a form field message set to <message>
   server.on(
       "/api/savebtsettings", HTTP_POST, [](AsyncWebServerRequest *request) {
+        pClient->disconnect();
         Serial.println("Save Bluetooth configuration event fired");
         String addresstmp;
 
@@ -299,7 +304,6 @@ void setup()
           breathalyzerAddress = addresstmp.c_str();
           Serial.println("Saving the address to memory");
           saveToFile("/ble.conf", addresstmp.c_str());
-          pClient->disconnect();
         }
       });
 
@@ -311,8 +315,6 @@ void setup()
 
         if (request->hasParam("SSID", true) && request->hasParam("Password", true))
         {
-          WiFi.softAPdisconnect();
-
           ssidtmp = request->getParam("SSID", true)->value();
           passwordtmp = request->getParam("Password", true)->value();
 
@@ -322,15 +324,13 @@ void setup()
           Serial.print("And Password: ");
           Serial.println(passwordtmp);
 
-          WiFi.persistent(false);
-          WiFi.setAutoReconnect(false);
-          WiFi.softAPdisconnect();
-          WiFi.disconnect();
-          WiFi.softAP(ssidtmp.c_str(), passwordtmp.c_str());
-
           Serial.println("Saving hotspot configuration to memory");
           saveToFile("/ssid.conf", ssidtmp.c_str());
           saveToFile("/pass.conf", passwordtmp.c_str());
+
+          Serial.println("Rebooting...");
+
+          ESP.restart();
         }
       });
 
@@ -362,11 +362,12 @@ void loop()
         }
       }
     }
-    else if (breathalyzerAddress.length() == 17)
+    else if (breathalyzerAddress.length() == 17 && !blockConnection)
     {
       Serial.println("Trying to connect");
       connectToServer(breathalyzerAddress.c_str());
     }
   }
-  delay(2000);
+  Serial.println("Sleep...");
+  delay(5000);
 }
