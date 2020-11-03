@@ -8,18 +8,22 @@
     <style>
         body {
             font-family: Calibri, sans-serif;
-            font-weight: 500;
+            font-weight: 400;
             display: flex;
             align-items: center;
             justify-content: center;
             box-sizing: border-box;
-            background: rgb(51, 48, 102);
-            background: linear-gradient(256deg, rgba(51, 48, 102, 1) 0%, rgba(80, 80, 214, 1) 29%, rgba(0, 212, 255, 1) 100%);
+            background: #005AA7;
+            /* fallback for old browsers */
+            background: -webkit-linear-gradient(15deg, #FFFDE4, #005AA7);
+            /* Chrome 10-25, Safari 5.1-6 */
+            background: linear-gradient(15deg, #FFFDE4, #005AA7);
+            /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
         }
 
         body,
         html {
-            height: 100%;
+            min-height: 100%;
             margin: 0;
         }
 
@@ -29,17 +33,6 @@
 
         p {
             text-align: justify;
-        }
-
-        #deviceSelect {
-            margin-top: 10px;
-            width: 100%;
-            display: block;
-            border: 1px solid #ccc;
-            border-radius: 3px;
-            overflow: hidden;
-            background: #f9f9f9;
-            padding: 5px 10px;
         }
 
         #deviceSelect select {
@@ -62,9 +55,10 @@
         }
 
         #flexbox {
+            margin: 30px;
             padding: 20px;
-            background-color: #fdfdfd;
-            border: 2px solid #333066;
+            background-color: rgba(255, 255, 255, 1);
+            border: 2px solid #303030;
             border-radius: 7px;
             -webkit-box-shadow: 0px 0px 10px 1px rgba(0, 0, 0, 0.5);
             -moz-box-shadow: 0px 0px 10px 1px rgba(0, 0, 0, 0.5);
@@ -79,20 +73,20 @@
             justify-content: center;
         }
 
-        input {
+        input, #deviceSelect {
             margin-top: 10px;
             width: 100%;
             display: block;
             border: 1px solid #ccc;
-            border-radius: 3px;
+            border-radius: 5px;
             overflow: hidden;
-            background: #f9f9f9;
+            background: rgba(255, 255, 255, 1);
             padding: 5px 10px;
             box-sizing: border-box;
         }
 
         hr {
-            margin: 25px 0;
+            margin: 15px 0;
         }
 
         .description {
@@ -110,50 +104,56 @@
             max-height: 0;
             transition: max-height 0.15s ease-out;
         }
+
+        select,
+        input:hover {
+            border: 1px solid black;
+            transition: border 0.5s ease-in;
+        }
     </style>
 </head>
 
 <body>
     <div id="wrapper">
         <div id="flexbox">
-            <h3>IID Module configuration panel</h2>
-                <p>To work properly, the IID Module requires a paired breathalyzer device. Make sure that the device
-                    you're
-                    trying to find is powered and within range of bluetooth connection.</p>
-                <form>
-                    <label for="cars">Select breathalyzer device</label>
-                    <select name="devices" id="deviceSelect">
-                        <option value="" disabled selected>Select device</option>
-                    </select>
-                    <p class="err" id="deviceerr">No device selected.</p>
-                    <br>
-                    <input type="button" onclick="saveBTSettings()" value="Save Bluetooth configuration">
-                </form>
-                <hr>
-                <p>You can change name (SSID) and password of this device's WiFi hotspot. Please make sure that the
-                    password
-                    is at least 8 characters long.</p>
-                <form>
-                    <label for="cars">Name this device's hostspot</label>
-                    <input type="text" name="ssid" placeholder="SSID">
-                    <p class="err" id="ssiderr">SSID has to at least 4 characters long.</p>
+            <h3>IID Module configuration panel</h3>
+            <hr>
+            <p>To work properly, the IID Module requires a paired breathalyzer device. Make sure that the device
+                you're
+                trying to find is powered and within range of bluetooth connection.</p>
+            <form>
+                <label for="cars">Select breathalyzer device</label>
+                <select name="devices" id="deviceSelect">
+                    <option value="" disabled selected>Select device</option>
+                </select>
+                <p class="err" id="deviceerr">No device selected.</p>
+                <br>
+                <input type="button" onclick="saveBTSettings()" value="Save Bluetooth configuration">
+            </form>
+            <hr>
+            <p>You can change name (SSID) and password of this device's WiFi hotspot. Please make sure that the
+                password is strong and at least 8 characters long.</p>
+            <form>
+                <label for="cars">Name this device's hostspot</label>
+                <input type="text" name="ssid" placeholder="SSID">
+                <p class="err" id="ssiderr">SSID has to be at least 4 characters long.</p>
 
-                    <br>
+                <br>
 
-                    <label for="cars">Set up a strong password</label>
-                    <input type="password" name="password" placeholder="Password">
-                    <p class="err" id="passerr">Password has to at least 8 characters long.</p>
+                <label for="cars">Set up a strong password</label>
+                <input type="password" name="password" placeholder="Password">
+                <p class="err" id="passerr">Password has to be at least 8 characters long.</p>
 
-                    <br>
-                    <input type="button" onclick="saveWIFISettings()" value="Save WiFi configuration">
-                </form>
-                <hr>
-                <p class="description">*All settings will be saved. You can change them at any time.</p>
+                <br>
+                <input type="button" onclick="saveWIFISettings()" value="Save WiFi configuration">
+            </form>
+            <hr>
+            <p class="description">*All settings will be saved. You can change them at any time.</p>
         </div>
     </div>
 </body>
 <script>
-    var devicesListJSON;
+    var devicesListJSON = new Object;
     var postData;
 
     const transFormRequest = (formValues) => {
@@ -176,11 +176,11 @@
     }
 
     async function saveBTSettings() {
-        if (document.getElementById("deviceSelect").value != "No devices found") {
+        if (document.getElementById("deviceSelect").selectedOptions[0].innerHTML != "No devices found") {
             if ('savedDevice' in devicesListJSON && document.getElementById("deviceSelect").value == devicesListJSON.deviceSelect.Name) {
                 postData = devicesListJSON.deviceSelect.Address;
             }
-            else {
+            else if ("devices" in devicesListJSON) {
                 for (var i = 0; i < devicesListJSON.devices.length; i++) {
                     if (devicesListJSON.devices[i].Name == document.getElementById("deviceSelect").value) {
                         postData = devicesListJSON.devices[i].Address;
@@ -193,7 +193,6 @@
             }));
             console.log(response);
             return response;
-
         } else {
             document.getElementById("deviceerr").style.maxHeight = "500px";
         }
