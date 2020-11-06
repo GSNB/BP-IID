@@ -8,8 +8,8 @@
 #include <BLEUtils.h>
 #include <BLEServer.h>
 
-#define SERVICE_UUID "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
-#define CHARACTERISTIC_UUID "1813"
+#define SERVICE_UUID "1813"
+#define CHARACTERISTIC_UUID "2A4D"
 
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 64 // OLED display height, in pixels
@@ -71,7 +71,7 @@ int resolution = 8;
 const int ledChannel = 0;
 
 //parametry czasowe
-int heatTime = 10;              //czas nagrzewania, w sekundach
+int heatTime = 60;              //czas nagrzewania, w sekundach
 int measureTime = 5;            //czas pomiaru, w sekundach
 int measurementDisplayTime = 5; //czas wyświetlania wyniku pomiaru, w sekundach
 
@@ -206,11 +206,12 @@ void setup()
   esp_ble_gap_set_security_param(ESP_BLE_SM_MAX_KEY_SIZE, &key_size, sizeof(uint8_t));
   esp_ble_gap_set_security_param(ESP_BLE_SM_SET_INIT_KEY, &init_key, sizeof(uint8_t));
   esp_ble_gap_set_security_param(ESP_BLE_SM_SET_RSP_KEY, &rsp_key, sizeof(uint8_t));
+
   pServer = BLEDevice::createServer();
   pServer->setCallbacks(new myServerCallback());
-  BLEService *pService = pServer->createService(SERVICE_UUID);
+  BLEService *pService = pServer->createService(BLEUUID(SERVICE_UUID));
   pCharacteristic = pService->createCharacteristic(
-      CHARACTERISTIC_UUID,
+      BLEUUID(CHARACTERISTIC_UUID),
       BLECharacteristic::PROPERTY_READ |
           BLECharacteristic::PROPERTY_WRITE);
 
@@ -219,11 +220,10 @@ void setup()
   pService->start();
 
   pAdvertising = BLEDevice::getAdvertising();
-  pAdvertising->addServiceUUID(SERVICE_UUID);
   pAdvertising->setScanResponse(true);
   pAdvertising->setMinPreferred(0x06); // functions that help with iPhone connections issue
   pAdvertising->setMinPreferred(0x12);
-  BLEDevice::startAdvertising();
+  pServer->startAdvertising();
 
   //konfiguracja buzzera
   pinMode(BUTTON_PIN, INPUT_PULLUP);

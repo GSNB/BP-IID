@@ -23,9 +23,9 @@ std::string breathalyzerAddress;
 std::string receivedValue;
 
 // The remote service we wish to connect to.
-#define serviceUUID "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
+#define serviceUUID "1813"
 // The characteristic we wish to read.
-#define characteristicUUID "1813"
+#define characteristicUUID "2A4D"
 
 #define MINIMUM_DEVICE_INFO_RESPONSE_SIZE 30
 #define MAXIMUM_DEVICE_OBJECT_SIZE 72
