@@ -50,9 +50,11 @@ int calibValue = 0;  //wartość kalibracyjna, x1
 int measurement = 0; //wartość zwracana przez ADC
 int alcValue = 0;    //wartość pomiaru w promilach * 1000
 
-char const *text = ""; //zmienna tymczasowa wykorzystywana do druku tekstu na wyświetlacz
-char *formattedValue;  //wartość pomiaru w promilach przekształcona na tablicę znaków
-int temp = 0;          //liczbowa zmienna tymczasowa
+//zmienna tymczasowa wykorzystywana do druku statusu połączenia na wyświetlacz
+char const *subText = "NOT CONNECTED";
+
+char *formattedValue; //wartość pomiaru w promilach przekształcona na tablicę znaków
+int temp = 0;         //liczbowa zmienna tymczasowa
 
 //zmienne potrzebne do sformatowania wartości promili
 char buffer[5];
@@ -147,6 +149,18 @@ void OLED(int x, int y, int value_decimal, int font_size)
   display.println(value_decimal, 10);
 }
 
+void OLEDDisplay(const char *main, const char *sub, int count)
+{
+  display.clearDisplay();
+  if (count > 0)
+  {
+    OLED(0, 0, count, 1);
+  }
+  OLED(0, SCREEN_HEIGHT - 8, sub, 1);
+  OLED((SCREEN_WIDTH - (strlen(main) * 11)) / 2, (SCREEN_HEIGHT - 16) / 2, main, 2);
+  display.display();
+}
+
 class myServerCallback : public BLEServerCallbacks
 {
 
@@ -171,6 +185,7 @@ class myServerCallback : public BLEServerCallbacks
     pAdvertising->stop();
     pCharacteristic->notify();
 
+    subText = "CONNECTED";
     deviceConnected = true;
   }
 
@@ -183,6 +198,8 @@ class myServerCallback : public BLEServerCallbacks
 
     deviceConnected = false;
 
+    subText = "NOT CONNECTED";
+
     flag = 0;
   }
 };
@@ -192,7 +209,7 @@ void setup()
   Serial.begin(115200);
 
   Wire.begin(SDA, SCL);
-  
+
   Serial.println("Starting BLE work!");
 
   BLEDevice::init("Breathalyzer");
@@ -241,13 +258,7 @@ void setup()
   //opóźnienie, proces nagrzewania czujnika
   for (int i = heatTime; i > 0; --i)
   {
-    text = "HEATING";
-
-    display.clearDisplay();
-    OLED(0, 0, i, 1);
-    OLED((SCREEN_WIDTH - (strlen(text) * 11)) / 2, (SCREEN_HEIGHT - 16) / 2, text, 2);
-    display.display();
-
+    OLEDDisplay("HEATING", subText, i);
     delay(1000);
   }
 
@@ -256,30 +267,21 @@ void setup()
   Serial.print("Calibration value: ");
   Serial.println(calibValue);
 
-  text = "READY";
-
-  display.clearDisplay();
-  OLED((SCREEN_WIDTH - (strlen(text) * 11)) / 2, (SCREEN_HEIGHT - 16) / 2, text, 2);
-  display.display();
-
   //włączenie przerwania przycisku
   attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), buttonInterrupt, CHANGE);
 }
 
 void loop()
 {
+  if (flag == 0)
+  {
+    OLEDDisplay("READY", subText, 0);
+  }
   if (deviceConnected)
   {
     if (flag == 0)
     {
       blockInput = false;
-
-      text = "READY";
-
-      display.clearDisplay();
-      OLED(0, 0, "CONNECTED", 1);
-      OLED((SCREEN_WIDTH - (strlen(text) * 11)) / 2, (SCREEN_HEIGHT - 16) / 2, text, 2);
-      display.display();
 
       delay(200);
     }
@@ -317,37 +319,25 @@ void loop()
         alcValue = 0;
       }
 
-      display.clearDisplay();
       ret = snprintf(buffer, sizeof buffer, "%f", alcValue / 1000.0);
-      OLED((SCREEN_WIDTH - (4 * 11)) / 2, (SCREEN_HEIGHT - 16) / 2, buffer, 2);
-      display.display();
+      OLEDDisplay(buffer, subText, 0);
 
       //zdarzenie uruchamia się po ustalonym czasie od rozpoczęcia pomiaru
       if (startMeasuring + (measureTime * 1000) < millis())
       {
         ledcWriteTone(ledChannel, 0);
+
         for (int i = measurementDisplayTime * 2; i > 0; --i)
         {
-          display.clearDisplay();
-          OLED(0, 0, ceil(i / 2), 1);
-
-          //konwersja wartości promili na tekst
-          ret = snprintf(buffer, sizeof buffer, "%f", alcValue / 1000.0);
-          OLED((SCREEN_WIDTH - (4 * 11)) / 2, (SCREEN_HEIGHT - 16) / 2, buffer, 2);
-          display.display();
+          OLEDDisplay(buffer, subText, ceil(i / 2));
           delay(250);
 
-          display.clearDisplay();
-          OLED(0, 0, ceil(i / 2), 1);
-          display.display();
+          OLEDDisplay("", subText, ceil(i / 2));
           delay(250);
         }
-        display.clearDisplay();
 
         //końcowy druk pomiaru
-        ret = snprintf(buffer, sizeof buffer, "%f", alcValue / 1000.0);
-        OLED((SCREEN_WIDTH - (4 * 11)) / 2, (SCREEN_HEIGHT - 16) / 2, buffer, 2);
-        display.display();
+        OLEDDisplay(buffer, subText, 0);
 
         Serial.print("Zawartość alkoholu wynosi: ");
         Serial.println(alcValue);
@@ -375,13 +365,6 @@ void loop()
   else
   {
     blockInput = true;
-    text = "READY";
-
-    display.clearDisplay();
-    OLED(0, 0, "NOT CONNECTED", 1);
-    OLED((SCREEN_WIDTH - (strlen(text) * 11)) / 2, (SCREEN_HEIGHT - 16) / 2, text, 2);
-    display.display();
-
     delay(500);
   }
 }
