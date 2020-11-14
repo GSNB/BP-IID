@@ -1,0 +1,105 @@
+
+body {
+    font-family: Calibri, sans-serif;
+    font-weight: 400;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    background: #005AA7;
+    /* fallback for old browsers */
+    background: -webkit-linear-gradient(15deg, #FFFDE4, #005AA7);
+    /* Chrome 10-25, Safari 5.1-6 */
+    background: linear-gradient(15deg, #FFFDE4, #005AA7);
+    /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
+}
+
+body,
+html {
+    min-height: 100%;
+    margin: 0;
+}
+
+h3 {
+    text-align: center;
+}
+
+p {
+    text-align: justify;
+}
+
+#deviceSelect select {
+    padding: 5px 8px;
+    width: 130%;
+    border: none;
+    box-shadow: none;
+    background: transparent;
+    background-image: none;
+    -webkit-appearance: none;
+}
+
+#deviceSelect select:focus {
+    outline: none;
+}
+
+#deviceSelect option {
+    padding: 5px 8px;
+    zoom: 1.1;
+}
+
+#flexbox {
+    margin: 30px;
+    padding: 20px;
+    background-color: rgba(255, 255, 255, 1);
+    border: 2px solid #303030;
+    border-radius: 7px;
+    -webkit-box-shadow: 0px 0px 10px 1px rgba(0, 0, 0, 0.5);
+    -moz-box-shadow: 0px 0px 10px 1px rgba(0, 0, 0, 0.5);
+    box-shadow: 0px 0px 10px 1px rgba(0, 0, 0, 0.5);
+    max-width: 400px;
+}
+
+#wrapper {
+    min-height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+input, #deviceSelect {
+    margin-top: 10px;
+    width: 100%;
+    display: block;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 1);
+    padding: 5px 10px;
+    box-sizing: border-box;
+}
+
+hr {
+    margin: 15px 0;
+}
+
+.description {
+    font-size: x-small;
+    font-weight: bold;
+}
+
+.err {
+    margin-top: 5px;
+    margin-bottom: 0;
+    color: red;
+    font-size: small;
+    font-weight: bold;
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height 0.15s ease-out;
+}
+
+select,
+input:hover {
+    border: 1px solid black;
+    transition: border 0.5s ease-in;
+}
