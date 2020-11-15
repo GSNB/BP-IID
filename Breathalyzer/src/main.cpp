@@ -1,42 +1,19 @@
-#include <SPI.h>
 #include <Wire.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
 #include <Adafruit_I2CDevice.h>
 #include <Adafruit_ADS1015.h>
-#include <BLEDevice.h>
-#include <BLEUtils.h>
-#include <BLEServer.h>
-#include <BLE2902.h>
+#include "MyBLEServer.h"
+#include "MyDisplay.h"
 
-#define SERVICE_UUID "1813"
-#define CHARACTERISTIC_UUID "2A4D"
+Adafruit_ADS1115 ads;
 
-#define SCREEN_WIDTH 128 // OLED display width, in pixels
-#define SCREEN_HEIGHT 64 // OLED display height, in pixels
-BLEServer *pServer = NULL;
-BLECharacteristic *pCharacteristic = NULL;
-BLEAdvertising *pAdvertising = NULL;
-bool deviceConnected = false;
-uint32_t value = 0;
-
-// Deklaracje dla sterownika SSD1306 (SPI)
-#define OLED_MOSI 19
-#define OLED_CLK 18
-#define OLED_DC 22
-#define OLED_CS 23
-#define OLED_RESET 21
+MyDisplay *display;
+MyBLEServer *server;
 
 #define BUTTON_PIN 15
 #define BUZZER 5
 
 #define SCL 27
 #define SDA 26
-
-Adafruit_ADS1115 ads;
-
-Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT,
-                         OLED_MOSI, OLED_CLK, OLED_DC, OLED_RESET, OLED_CS);
 
 //główna flaga zarządzająca przebiegiem programu, przełączana przerwaniem przycisku
 int flag = 0;
@@ -51,9 +28,6 @@ int calibValue = 0;  //wartość kalibracyjna, x1
 int measurement = 0; //wartość zwracana przez ADC
 int alcValue = 0;    //wartość pomiaru w promilach * 1000
 
-//zmienna tymczasowa wykorzystywana do druku statusu połączenia na wyświetlacz
-char const *subText = "NOT CONNECTED";
-
 char *formattedValue; //wartość pomiaru w promilach przekształcona na tablicę znaków
 int temp = 0;         //liczbowa zmienna tymczasowa
 
@@ -64,9 +38,6 @@ int ret = 0;
 unsigned long lastDebounceTime = 0; //czas wywołania ostatniego przerwania
 unsigned long startPressed = 0;     //czas przytrzymania przycisku
 unsigned long startMeasuring = 0;   //czas wykonywania pomiaru
-
-//zmienna iteratora pamięci
-int address = 0;
 
 //parametry uruchomieniowe buzzera
 int freq = 2000;
@@ -130,139 +101,26 @@ void IRAM_ATTR buttonInterrupt()
   }
 }
 
-//fukcja zapisu podanej wartości value do pamięci pod następny wolny adres
-
-//fukcja (przeciążona) do wyświetlania tekstu
-void OLED(int x, int y, const char *text, int font_size)
-{
-  display.setCursor(x, y);
-  display.setTextSize(font_size);
-  display.setTextColor(SSD1306_WHITE);
-  display.println(text);
-}
-
-//fukcja (przeciążona) do wyświetlania liczby o podstawie dziesiątkowej
-void OLED(int x, int y, int value_decimal, int font_size)
-{
-  display.setCursor(x, y);
-  display.setTextSize(font_size);
-  display.setTextColor(SSD1306_WHITE);
-  display.println(value_decimal, 10);
-}
-
-void OLEDDisplay(const char *main, const char *sub, int count)
-{
-  display.clearDisplay();
-  if (count > 0)
-  {
-    OLED(0, 0, count, 1);
-  }
-  OLED(0, SCREEN_HEIGHT - 8, sub, 1);
-  OLED((SCREEN_WIDTH - (strlen(main) * 11)) / 2, (SCREEN_HEIGHT - 16) / 2, main, 2);
-  display.display();
-}
-
-class myServerCallback : public BLEServerCallbacks
-{
-
-  void onConnect(BLEServer *pServer, esp_ble_gatts_cb_param_t *param)
-  {
-
-    char remoteAddress[18];
-
-    sprintf(
-        remoteAddress,
-        "%.2X:%.2X:%.2X:%.2X:%.2X:%.2X",
-        param->connect.remote_bda[0],
-        param->connect.remote_bda[1],
-        param->connect.remote_bda[2],
-        param->connect.remote_bda[3],
-        param->connect.remote_bda[4],
-        param->connect.remote_bda[5]);
-
-    Serial.print("Device connected, MAC: ");
-    Serial.println(remoteAddress);
-
-    pAdvertising->stop();
-    pCharacteristic->notify();
-
-    subText = "CONNECTED";
-    deviceConnected = true;
-  }
-
-  void onDisconnect(BLEServer *pServer)
-  {
-
-    Serial.println("Device disconnected");
-
-    pAdvertising->start();
-
-    deviceConnected = false;
-
-    subText = "NOT CONNECTED";
-
-    flag = 0;
-  }
-};
-
 void setup()
 {
   Serial.begin(115200);
 
   Wire.begin(SDA, SCL);
 
+  display = new MyDisplay();
+
   Serial.println("Starting BLE work!");
-
-  BLEDevice::init("Breathalyzer");
-  esp_ble_auth_req_t auth_req = ESP_LE_AUTH_NO_BOND;
-  esp_ble_io_cap_t iocap = ESP_IO_CAP_NONE;
-  uint8_t key_size = 16;
-  uint8_t init_key = ESP_BLE_ENC_KEY_MASK | ESP_BLE_ID_KEY_MASK;
-  uint8_t rsp_key = ESP_BLE_ENC_KEY_MASK | ESP_BLE_ID_KEY_MASK;
-  esp_ble_gap_set_security_param(ESP_BLE_SM_AUTHEN_REQ_MODE, &auth_req, sizeof(uint8_t));
-  esp_ble_gap_set_security_param(ESP_BLE_SM_IOCAP_MODE, &iocap, sizeof(uint8_t));
-  esp_ble_gap_set_security_param(ESP_BLE_SM_MAX_KEY_SIZE, &key_size, sizeof(uint8_t));
-  esp_ble_gap_set_security_param(ESP_BLE_SM_SET_INIT_KEY, &init_key, sizeof(uint8_t));
-  esp_ble_gap_set_security_param(ESP_BLE_SM_SET_RSP_KEY, &rsp_key, sizeof(uint8_t));
-
-  pServer = BLEDevice::createServer();
-  pServer->setCallbacks(new myServerCallback());
-  BLEService *pService = pServer->createService(BLEUUID(SERVICE_UUID));
-  pCharacteristic = pService->createCharacteristic(
-      BLEUUID(CHARACTERISTIC_UUID),
-      BLECharacteristic::PROPERTY_READ |
-          BLECharacteristic::PROPERTY_WRITE |
-          BLECharacteristic::PROPERTY_NOTIFY |
-          BLECharacteristic::PROPERTY_INDICATE);
-
-  pCharacteristic->addDescriptor(new BLE2902());
-  pCharacteristic->setValue("BLOCK");
-  Serial.println("Set to BLOCK");
-  pService->start();
-
-  pAdvertising = BLEDevice::getAdvertising();
-  pAdvertising->setScanResponse(true);
-  pAdvertising->setMinPreferred(0x06); // functions that help with iPhone connections issue
-  pAdvertising->setMinPreferred(0x12);
-  pServer->startAdvertising();
+  server = new MyBLEServer(&display->subText, &flag);
 
   //konfiguracja buzzera
   pinMode(BUTTON_PIN, INPUT_PULLUP);
   ledcSetup(ledChannel, freq, resolution);
   ledcAttachPin(BUZZER, ledChannel);
 
-  //konfiguracja wyświetlacza
-  if (!display.begin(SSD1306_SWITCHCAPVCC))
-  {
-    Serial.println(F("SSD1306 allocation failed"));
-    for (;;)
-      ;
-  }
-
   //opóźnienie, proces nagrzewania czujnika
   for (int i = heatTime; i > 0; --i)
   {
-    OLEDDisplay("HEATING", subText, i);
+    display->OLEDDisplay("HEATING", i);
     delay(1000);
   }
 
@@ -279,9 +137,9 @@ void loop()
 {
   if (flag == 0)
   {
-    OLEDDisplay("READY", subText, 0);
+    display->OLEDDisplay("READY", 0);
   }
-  if (deviceConnected)
+  if (server->deviceConnected)
   {
     if (flag == 0)
     {
@@ -324,7 +182,7 @@ void loop()
       }
 
       ret = snprintf(buffer, sizeof buffer, "%f", alcValue / 1000.0);
-      OLEDDisplay(buffer, subText, 0);
+      display->OLEDDisplay(buffer, 0);
 
       //zdarzenie uruchamia się po ustalonym czasie od rozpoczęcia pomiaru
       if (startMeasuring + (measureTime * 1000) < millis())
@@ -333,23 +191,22 @@ void loop()
 
         for (int i = measurementDisplayTime * 2; i > 0; --i)
         {
-          OLEDDisplay(buffer, subText, ceil(i / 2));
+          display->OLEDDisplay(buffer, ceil(i / 2));
           delay(250);
 
-          OLEDDisplay("", subText, ceil(i / 2));
+          display->OLEDDisplay("", ceil(i / 2));
           delay(250);
         }
 
         //końcowy druk pomiaru
-        OLEDDisplay(buffer, subText, 0);
+        display->OLEDDisplay(buffer, 0);
 
         Serial.print("Zawartość alkoholu wynosi: ");
         Serial.println(alcValue);
 
         if (alcValue < 100)
         {
-          pCharacteristic->setValue("UNLOCK");
-          pCharacteristic->notify();
+          server->writeToCharacteristic("UNLOCK");
           Serial.println("Sent UNLOCK");
         }
 
@@ -360,9 +217,6 @@ void loop()
 
         //wyłączenie blokady przycisku
         blockInput = false;
-
-        //zerowanie flagi przytrzymania przycisku
-        //buttonWasHeld = false;
       }
     }
   }
