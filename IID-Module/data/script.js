@@ -80,7 +80,7 @@ window.onload = function(){
         }
         document.getElementsByName("ssid")[0].value = data.wifi.SSID;
         if ('savedDevice' in data) {
-            document.getElementById("deviceSelect").options[0].innerHTML = data.deviceSelect.Name;
+            document.getElementById("deviceSelect").options[0].innerHTML = data.savedDevice.Name;
         }
     }).catch(error => {
         document.getElementById("deviceSelect").options[0].innerHTML = "No devices found";

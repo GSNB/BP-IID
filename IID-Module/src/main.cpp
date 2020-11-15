@@ -16,13 +16,13 @@
 #define defaultPassword "zaq1@WSX"
 
 std::string breathalyzerAddress;
+std::string receivedValue;
 MyBLE *bluetooth;
 MyHotspot *hotspot;
 MyWebServer *web;
 
-std::string receivedValue;
-
 bool blockFlag = true;
+extern bool notifed;
 
 bool blockConnection = false;
 
@@ -49,7 +49,7 @@ void setup()
   hotspot->getMemConfig();
   hotspot->start();
 
-  Serial.println("Creating Hotspot Object");
+  Serial.println("Creating WebServer Object");
   web = new MyWebServer();
   web->setupBTEndpoint(breathalyzerAddress, bluetooth);
   web->setupInfoEndpoint(bluetooth, hotspot, breathalyzerAddress, blockConnection, scanTime);
@@ -62,28 +62,30 @@ void loop()
 {
   if (blockFlag)
   {
-    if (bluetooth->pClient->isConnected())
-    {
-      // Read the value of the characteristic.
-      if (bluetooth->pRemoteCharacteristic->canRead())
-      {
-        Serial.print("Read characteristic value is: ");
-        Serial.println(bluetooth->pRemoteCharacteristic->readValue().c_str());
-        Serial.println(bluetooth->pRemoteCharacteristic->toString().c_str());
-        receivedValue = bluetooth->pRemoteCharacteristic->readValue().c_str();
-        if (receivedValue == "UNLOCK")
-        {
-          blockFlag = false;
-          digitalWrite(RELAY_PIN, LOW);
-        }
-      }
-    }
-    else if (breathalyzerAddress.length() == 17 && !blockConnection)
+    if (!bluetooth->pClient->isConnected() && breathalyzerAddress.length() == 17 && !blockConnection)
     {
       Serial.println("Trying to connect");
       bluetooth->connectToServer(breathalyzerAddress.c_str());
     }
+    if (bluetooth->pClient->isConnected() && notified)
+    {
+      notified = false;
+      Serial.println("Got notification!");
+      Serial.print("Read characteristic value is: ");
+      Serial.println(bluetooth->pRemoteCharacteristic->readValue().c_str());
+      Serial.println(bluetooth->pRemoteCharacteristic->toString().c_str());
+      receivedValue = bluetooth->pRemoteCharacteristic->readValue().c_str();
+      if (receivedValue == "UNLOCK")
+      {
+        blockFlag = false;
+        digitalWrite(RELAY_PIN, LOW);
+      }
+    }
   }
-  Serial.println("Sleep...");
-  delay(1000);
+  else
+  {
+    Serial.println("Going to sleep...");
+    Serial.println("And I think it's gonna be a long, long time");
+    esp_deep_sleep_start();
+  }
 }

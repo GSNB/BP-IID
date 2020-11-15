@@ -9,10 +9,14 @@
 #error Bluetooth is not enabled! Please run `make menuconfig` to and enable it
 #endif
 
+#define RELAY_PIN 2
+
 // The remote service we wish to connect to.
 #define serviceUUID "1813"
 // The characteristic we wish to read.
 #define characteristicUUID "2A4D"
+
+bool notified = false;
 
 class MyAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks
 {
@@ -22,6 +26,14 @@ class MyAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks
     }
 };
 
+static void notifyCallback(BLERemoteCharacteristic *pRemoteCharacteristic, uint8_t *pData, size_t length, bool isNotify)
+{
+    if (isNotify)
+    {
+        notified = true;
+    }
+}
+
 class MyBLE
 {
 public:
@@ -29,7 +41,6 @@ public:
     BLEClient *pClient;
     BLEScanResults foundDevices;
     BLERemoteCharacteristic *pRemoteCharacteristic;
-    std::string breathalyzerAddress;
 
     MyBLE()
     {
@@ -75,6 +86,13 @@ public:
                 pClient->disconnect();
                 return false;
             }
+            
+            if (pRemoteCharacteristic->canNotify())
+            {
+                Serial.println("Registering notify callback");
+                pRemoteCharacteristic->registerForNotify(notifyCallback);
+            }
+
             return true;
         }
         else

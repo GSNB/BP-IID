@@ -20,7 +20,8 @@ public:
     AsyncWebServer *server;
     AsyncEventSource *events;
 
-    MyWebServer() {
+    MyWebServer()
+    {
         server = new AsyncWebServer(80);
         events = new AsyncEventSource("/events");
     }
@@ -31,19 +32,20 @@ public:
             "/api/savebtsettings", HTTP_POST, [&breathalyzerAddress, bluetooth](AsyncWebServerRequest *request) {
                 bluetooth->pClient->disconnect();
                 Serial.println("Save Bluetooth configuration event fired");
-                String addresstmp;
+                std::string addresstmp;
 
                 if (request->hasParam("Address", true))
                 {
-                    addresstmp = request->getParam("Address", true)->value();
+                    addresstmp = request->getParam("Address", true)->value().c_str();
 
                     Serial.print("Received BT device address: ");
-                    Serial.println(addresstmp);
-
-                    breathalyzerAddress = addresstmp.c_str();
-                    Serial.println("Saving the address to memory");
+                    Serial.println(addresstmp.c_str());
+                    Serial.println(breathalyzerAddress.c_str());
+                    breathalyzerAddress = addresstmp;
+                    Serial.println(breathalyzerAddress.c_str());
                     saveToFile("/ble.conf", addresstmp.c_str());
                 }
+                request->send(200, "text/plain", "BLE Device saved");
             });
     }
 
@@ -70,6 +72,8 @@ public:
                     saveToFile("/ssid.conf", ssidtmp.c_str());
                     saveToFile("/pass.conf", passwordtmp.c_str());
 
+                    request->send(200, "text/plain", "WiFi configuration saved");
+
                     Serial.println("Rebooting...");
 
                     ESP.restart();
@@ -77,15 +81,12 @@ public:
             });
     }
 
-    void setupInfoEndpoint(MyBLE *bluetooth, MyHotspot *hotspot, std::string breathalyzerAddress, bool &flag, int time)
+    void setupInfoEndpoint(MyBLE *bluetooth, MyHotspot *hotspot, std::string &breathalyzerAddress, bool &flag, int time)
     {
         // Send a GET request to <IP>/get?message=<message>
-        server->on("/api/getconfiguration", HTTP_GET, [bluetooth, hotspot, breathalyzerAddress, &flag, time](AsyncWebServerRequest *request) {
+        server->on("/api/getconfiguration", HTTP_GET, [bluetooth, hotspot, &breathalyzerAddress, &flag, time](AsyncWebServerRequest *request) {
             Serial.println("Starting BLE scan");
-            Serial.println("UWAGA");
-            Serial.println(flag);
             flag = true;
-            Serial.println(flag);
             bluetooth->pClient->disconnect();
             bluetooth->foundDevices = bluetooth->pBLEScan->start(time, false);
             delay(time * 1000);

@@ -7,6 +7,7 @@
 #include <BLEDevice.h>
 #include <BLEUtils.h>
 #include <BLEServer.h>
+#include <BLE2902.h>
 
 #define SERVICE_UUID "1813"
 #define CHARACTERISTIC_UUID "2A4D"
@@ -230,8 +231,11 @@ void setup()
   pCharacteristic = pService->createCharacteristic(
       BLEUUID(CHARACTERISTIC_UUID),
       BLECharacteristic::PROPERTY_READ |
-          BLECharacteristic::PROPERTY_WRITE);
+          BLECharacteristic::PROPERTY_WRITE |
+          BLECharacteristic::PROPERTY_NOTIFY |
+          BLECharacteristic::PROPERTY_INDICATE);
 
+  pCharacteristic->addDescriptor(new BLE2902());
   pCharacteristic->setValue("BLOCK");
   Serial.println("Set to BLOCK");
   pService->start();
