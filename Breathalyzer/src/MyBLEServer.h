@@ -3,6 +3,7 @@
 #include <BLEUtils.h>
 #include <BLEServer.h>
 #include <BLE2902.h>
+#include <Arduino.h>
 
 #define SERVICE_UUID "1813"
 #define CHARACTERISTIC_UUID "2A4D"
@@ -13,6 +14,7 @@ class myServerCallback : public BLEServerCallbacks
     std::string *subTextRef;
     bool *deviceConnectedRef;
     int *stateFlagRef;
+    
     myServerCallback(std::string *subText, bool *deviceConnected, int *stateFlag)
     {
         subTextRef = subText;

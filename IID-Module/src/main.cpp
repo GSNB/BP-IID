@@ -1,5 +1,4 @@
 #include <Arduino.h>
-#include <string>
 #include "memory.h"
 #include "MyBLE.h"
 #include "MyHotspot.h"

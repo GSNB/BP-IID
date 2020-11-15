@@ -16,7 +16,7 @@
 class MyDisplay
 {
 public:
-    Adafruit_SSD1306 *display;
+    Adafruit_SSD1306 *display = NULL;
     //zmienna tymczasowa wykorzystywana do druku statusu połączenia na wyświetlacz
     std::string subText;
 
@@ -33,6 +33,8 @@ public:
             for (;;)
                 ;
         }
+        display->clearDisplay();
+        display->display();
     }
     void OLED(int x, int y, std::string text, int font_size)
     {
