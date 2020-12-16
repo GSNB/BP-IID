@@ -2,7 +2,7 @@
 <html>
 
 <head>
-    <title>IID Module Configuration</title>
+    <title>Konfiguracja modułu blokującego</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <script src="axios.min.js"></script>
     <link rel="stylesheet" href="style.css">
@@ -11,39 +11,36 @@
 <body>
     <div id="wrapper">
         <div id="flexbox">
-            <h3>IID Module configuration panel</h3>
+            <h3>Panel konfiguracyjny modułu blokującego</h3>
             <hr>
-            <p>To work properly, the IID Module requires a paired breathalyzer device. Make sure that the device
-                you're
-                trying to find is powered and within range of bluetooth connection.</p>
+            <p>W celu poprawnego funkcjonowania urządzenie blokujące wymaga połączenia z urządzeniem pomiarowym. Upewnij się, że urządzenie które próbujesz odnaleźć jest włączone oraz w zasięgu sieci Bluetooth.</p>
             <form>
-                <label for="cars">Select breathalyzer device</label>
+                <label for="cars">Wybierz urządzenie pomiarowe</label>
                 <select name="devices" id="deviceSelect">
-                    <option value="" disabled selected>Select device</option>
+                    <option value="" disabled selected>Wybierz urządzenie</option>
                 </select>
-                <p class="err" id="deviceerr">No device selected.</p>
+                <p class="err" id="deviceerr">Nie wybrano żadnego urządzenia.</p>
                 <br>
-                <input type="button" onclick="saveBTSettings()" value="Save Bluetooth configuration">
+                <input type="button" onclick="saveBTSettings()" value="Zapisz ustawienia Bluetooth">
             </form>
             <hr>
-            <p>You can change name (SSID) and password of this device's WiFi hotspot. Please make sure that the
-                password is strong and at least 8 characters long.</p>
+            <p>Możesz zmienić nazwę (SSID) oraz hasło dostępowe do sieci WiFi tego urządzenia. Hasło powinno być trudne do odgadnięcia oraz składać się z conajmniej 8 znaków.</p>
             <form>
-                <label for="cars">Name this device's hostspot</label>
+                <label for="cars">Wybierz nazwę sieci</label>
                 <input type="text" name="ssid" placeholder="SSID">
-                <p class="err" id="ssiderr">SSID has to be at least 4 characters long.</p>
+                <p class="err" id="ssiderr">Nazwa sieci powinna składać się z conajmniej 4 znaków.</p>
 
                 <br>
 
-                <label for="cars">Set up a strong password</label>
-                <input type="password" name="password" placeholder="Password">
-                <p class="err" id="passerr">Password has to be at least 8 characters long.</p>
+                <label for="cars">Ustaw silne hasło</label>
+                <input type="password" name="password" placeholder="Hasło">
+                <p class="err" id="passerr">Hasło powinno składać się z conajmniej 8 znaków.</p>
 
                 <br>
-                <input type="button" onclick="saveWIFISettings()" value="Save WiFi configuration">
+                <input type="button" onclick="saveWIFISettings()" value="Zapisz ustawienia WiFi">
             </form>
             <hr>
-            <p class="description">*All settings will be saved. You can change them at any time.</p>
+            <p class="description">*Wszystkie ustawienia zostaną zapamiętane. Można zmienić je w każdym momencie.</p>
         </div>
     </div>
 </body>

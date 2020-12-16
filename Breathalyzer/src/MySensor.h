@@ -34,7 +34,7 @@ public:
 
     void read()
     {
-        int temp = map(ads.readADC_SingleEnded(0), 0, 32768, 0, 4095);
+        int temp = map(ads.readADC_SingleEnded(0), 0, 32766, 0, 4095);
         if (temp > measurement)
         {
             measurement = temp;

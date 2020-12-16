@@ -21,7 +21,7 @@ async function getConfiguration() {
 }
 
 async function saveBTSettings() {
-    if (document.getElementById("deviceSelect").selectedOptions[0].innerHTML != "No devices found") {
+    if (document.getElementById("deviceSelect").selectedOptions[0].innerHTML != "Nie znaleziono żadnych urządzeń") {
         if ('savedDevice' in devicesListJSON && document.getElementById("deviceSelect").value == devicesListJSON.deviceSelect.Name) {
             postData = devicesListJSON.deviceSelect.Address;
         }
@@ -76,14 +76,14 @@ window.onload = function(){
             }
             devicesListJSON = data;
         } else {
-            document.getElementById("deviceSelect").options[0].innerHTML = "No devices found";
+            document.getElementById("deviceSelect").options[0].innerHTML = "Nie znaleziono żadnych urządzeń";
         }
         document.getElementsByName("ssid")[0].value = data.wifi.SSID;
         if ('savedDevice' in data) {
             document.getElementById("deviceSelect").options[0].innerHTML = data.savedDevice.Name;
         }
     }).catch(error => {
-        document.getElementById("deviceSelect").options[0].innerHTML = "No devices found";
+        document.getElementById("deviceSelect").options[0].innerHTML = "Nie znaleziono żadnych urządzeń";
         console.log(error.message); // 'An error has occurred: 404'
     });
 };
