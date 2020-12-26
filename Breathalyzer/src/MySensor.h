@@ -17,10 +17,10 @@ public:
     //współrzędne punktów, do aproksymacji
     int y1 = 0;
 
-    int x2 = 919;
+    int x2 = 7345;
     float y2 = 0.13;
 
-    int x3 = 1302;
+    int x3 = 10415;
     float y3 = 0.89;
 
     MySensor()
@@ -34,7 +34,7 @@ public:
 
     void read()
     {
-        int temp = map(ads.readADC_SingleEnded(0), 0, 32766, 0, 4095);
+        int temp = ads.readADC_SingleEnded(0);
         if (temp > measurement)
         {
             measurement = temp;

@@ -3,7 +3,6 @@
 #include "MyBLE.h"
 #include "MyHotspot.h"
 #include "MyWebServer.h"
-#include <FS.h>
 #include "SPIFFS.h"
 #include "ESPAsyncWebServer.h"
 #include <AsyncTCP.h>
